@@ -38,7 +38,6 @@
           ]
         }
       },
-      "id": "f1a1a1a1-0000-4000-8000-000000000000",
       "name": "Config",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -54,12 +53,14 @@
             {
               "field": "weeks",
               "weeksInterval": 1,
-              "triggerAtDay": 5
+              "triggerAtDays": [
+                5
+              ],
+              "triggerAtHour": 17
             }
           ]
         }
       },
-      "id": "f1a1a1a1-0001-4001-8001-000000000001",
       "name": "Every Friday 5pm",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
@@ -86,7 +87,6 @@
         },
         "options": {}
       },
-      "id": "f1a1a1a1-0003-4003-8003-000000000003",
       "name": "GitHub Commits",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -113,7 +113,6 @@
         },
         "options": {}
       },
-      "id": "f1a1a1a1-0004-4004-8004-000000000004",
       "name": "GitHub Closed Issues",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -140,7 +139,6 @@
         },
         "options": {}
       },
-      "id": "f1a1a1a1-0005-4005-8005-000000000005",
       "name": "GitHub Merged PRs",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -153,7 +151,6 @@
       "parameters": {
         "jsCode": "const GITHUB_REPO = $('Config').first().json.GITHUB_REPO;\nconst LANGUAGE = $('Config').first().json.LANGUAGE || 'EN';\n\nconst allItems = $input.all();\n\nconst commits = allItems.filter(i => i.json && i.json.sha !== undefined);\nconst issues = allItems.filter(i => i.json && i.json.state === 'closed' && !i.json.pull_request && i.json.sha === undefined);\nconst prs = allItems.filter(i => i.json && i.json.pull_request !== undefined);\n\nconst weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);\nconst mergedPRs = prs.filter(pr => pr.json.merged_at && new Date(pr.json.merged_at) >= weekAgo);\n\nconst formatDate = (d) => new Date(d).toISOString().split('T')[0];\n\nconst FR = LANGUAGE === 'FR';\nlet report = FR\n  ? `R\u00c9SUM\u00c9 HEBDOMADAIRE DE D\u00c9VELOPPEMENT\\nD\u00e9p\u00f4t: ${GITHUB_REPO}\\nP\u00e9riode: 7 derniers jours\\n\\n`\n  : `WEEKLY DEV SUMMARY\\nRepository: ${GITHUB_REPO}\\nPeriod: Last 7 days\\n\\n`;\n\nreport += `## ${FR ? 'COMMITS' : 'COMMITS'} (${commits.length})\\n`;\nif (commits.length === 0) report += FR ? 'Aucun commit cette semaine.\\n' : 'No commits this week.\\n';\nelse commits.slice(0, 30).forEach(c => {\n  const j = c.json;\n  const sha = (j.sha || '').substring(0, 7);\n  const msg = (j.commit && j.commit.message || '').split('\\n')[0];\n  const author = j.commit && j.commit.author ? j.commit.author.name : 'unknown';\n  const date = j.commit && j.commit.author ? formatDate(j.commit.author.date) : '';\n  report += `- [${sha}] ${msg} (${author}, ${date})\\n`;\n});\n\nreport += `\\n## ${FR ? 'TICKETS FERM\u00c9S' : 'CLOSED ISSUES'} (${issues.length})\\n`;\nif (issues.length === 0) report += FR ? 'Aucun ticket ferm\u00e9 cette semaine.\\n' : 'No closed issues this week.\\n';\nelse issues.slice(0, 20).forEach(i => {\n  const j = i.json;\n  const labels = j.labels ? j.labels.map(l => l.name).join(', ') : '';\n  report += `- #${j.number}: ${j.title}${labels ? ' [' + labels + ']' : ''}\\n`;\n});\n\nreport += `\\n## ${FR ? 'PULL REQUESTS MERG\u00c9ES' : 'MERGED PULL REQUESTS'} (${mergedPRs.length})\\n`;\nif (mergedPRs.length === 0) report += FR ? 'Aucune PR merg\u00e9e cette semaine.\\n' : 'No merged PRs this week.\\n';\nelse mergedPRs.slice(0, 20).forEach(p => {\n  const j = p.json;\n  report += `- #${j.number}: ${j.title} (by ${j.user ? j.user.login : 'unknown'})\\n`;\n});\n\nreturn [{ json: { report } }];"
       },
-      "id": "f1a1a1a1-0006-4006-8006-000000000006",
       "name": "Merge & Format Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -185,7 +182,6 @@
         "body": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1024, system: 'You are a developer relations assistant. Write a clear, engaging weekly development summary based on the provided raw data. Highlight key achievements, top contributors, and notable changes. Use headers and bullet points. Keep it concise but informative. Language: ' + $('Config').item.json.LANGUAGE, messages: [{ role: 'user', content: $('Merge & Format Data').item.json.report }] }) }}",
         "options": {}
       },
-      "id": "f1a1a1a1-0007-4007-8007-000000000007",
       "name": "Claude Sonnet 4",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -213,7 +209,6 @@
           ]
         }
       },
-      "id": "f1a1a1a1-0008-4008-8008-000000000008",
       "name": "Extract Summary",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -232,7 +227,6 @@
         "body": "={{ JSON.stringify({ content: '**\ud83d\udccb Weekly Dev Summary \u2014 ' + $json.repo + '**\\n\\n' + $json.summary, username: 'Dev Summary Bot' }) }}",
         "options": {}
       },
-      "id": "f1a1a1a1-0009-4009-8009-000000000009",
       "name": "Send to Discord",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -247,7 +241,6 @@
         "numberOfInputs": 3,
         "options": {}
       },
-      "id": "f1a1a1a1-0010-4010-8010-000000000010",
       "name": "Wait for All GitHub Data",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
